@@ -124,3 +124,9 @@ python main.py
 ```
 
 The program will first display the detected contours and then start the Fourier drawing animation. 
+
+## Demo
+
+Here is the program reconstructing an image using Fourier coefficients and rotating circles:
+
+[Watch the demonstration on YouTube](https://www.youtube.com/watch?v=OJz5RncO0B4)
