@@ -1,0 +1,156 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+img_path = "C:\\Users\\hnfdn\\Pictures\\Project\\maxresdefault.jpg"
+image = cv2.imread(img_path)
+
+# check if image actually loaded lol
+if image is None:
+    print("Error: couldn't load image. Check the path!")
+    exit()
+
+gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+_, thresh = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+binarized_image = cv2.bitwise_not(thresh)
+
+contours, hierarchy = cv2.findContours(
+    binarized_image,
+    cv2.RETR_LIST,
+    cv2.CHAIN_APPROX_NONE
+)
+
+good_contours = []
+for c in contours:
+    if cv2.contourArea(c) > 10:
+        good_contours.append(c)
+
+contours = good_contours
+print("Got this many contours:", len(contours))
+
+plt.figure()
+for cnt in contours:
+    cnt = cnt.reshape(-1, 2)
+    plt.plot(cnt[:, 0], cnt[:, 1], linewidth=0.5)
+
+plt.gca().invert_yaxis()
+plt.axis("equal")
+plt.title("Contours check")
+
+fourier_contours = []
+
+for cnt in contours:
+    cnt = cnt.reshape(-1, 2)
+    x = cnt[:, 0]
+    y = cnt[:, 1]
+    
+    z = x + 1j * y
+    
+    N = len(z)
+    fourier_result = np.fft.fft(z) / N
+    freqs = np.fft.fftfreq(N) * N
+    freqs = freqs.astype(int)
+    
+    mags = np.abs(fourier_result)
+    
+    sorted_idx = np.argsort(mags)[::-1]
+    
+    n_harmonics = min(50, N)
+    sorted_idx = sorted_idx[:n_harmonics]
+
+    fourier_contours.append({
+        "fourier": fourier_result,
+        "frequencies": freqs,
+        "indices": sorted_idx
+    })
+
+fig, ax = plt.subplots(figsize=(8, 8))
+total_frames = 300 
+time_steps = np.linspace(0, 1, total_frames)
+
+drawn_paths = [[] for _ in fourier_contours]
+
+def animate_draw(frame):
+    ax.clear()
+
+    # Last frame = trace only
+    if frame == total_frames:
+        for p in drawn_paths:
+            pass
+
+        ax.set_aspect("equal")
+        ax.set_xlim(0, image.shape[1])
+        ax.set_ylim(0, image.shape[0])
+        ax.invert_yaxis()
+
+        for p in drawn_paths:
+            pts = np.array(p)
+
+            if len(pts) > 1:
+                ax.plot(pts.real, pts.imag, linewidth=1.2, color="red")
+
+        ax.set_title("Fourier drawing complete")
+
+        return
+
+    # Normal animation
+    if frame == 0:
+        for p in drawn_paths:
+            p.clear()
+
+    ax.set_aspect("equal")
+    ax.set_xlim(0, image.shape[1])
+    ax.set_ylim(0, image.shape[0])
+    ax.invert_yaxis()
+
+    current_t = time_steps[frame]
+
+    for i, item in enumerate(fourier_contours):
+
+        fourier = item["fourier"]
+        frequencies = item["frequencies"]
+        indices = item["indices"]
+
+        current_pos = 0 + 0j
+
+        for idx in indices:
+
+            coeff = fourier[idx]
+            radius = np.abs(coeff)
+            phase = np.angle(coeff)
+            freq = frequencies[idx]
+
+            angle = 2 * np.pi * freq * current_t + phase
+
+            next_pos = (current_pos + radius * np.exp(1j * angle))
+
+            theta_vals = np.linspace(0, 2 * np.pi, 60)
+
+            cx = (current_pos.real + radius * np.cos(theta_vals))
+
+            cy = (current_pos.imag + radius * np.sin(theta_vals))
+
+            ax.plot(cx, cy, linewidth=0.2, color="gray", alpha=0.5)
+
+            ax.plot([current_pos.real, next_pos.real], [current_pos.imag, next_pos.imag], linewidth=0.6, color="blue")
+
+            current_pos = next_pos
+
+        drawn_paths[i].append(current_pos)
+
+        pts = np.array(drawn_paths[i])
+
+        if len(pts) > 1:
+            ax.plot(pts.real, pts.imag, linewidth=1.2, color="red")
+
+        ax.plot(current_pos.real, current_pos.imag, "ro", markersize=2)
+
+    ax.set_title(f"Epicycles drawing... frame {frame + 1}/{total_frames}")
+
+# run the animation
+anim = FuncAnimation(fig, animate_draw, frames=total_frames + 1, interval=15, repeat=False)
+
+plt.show()
