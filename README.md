@@ -123,4 +123,4 @@ Then run the program:
 python main.py
 ```
 
-The program will first display the detected contours and then start the Fourier drawing animation.
+The program will first display the detected contours and then start the Fourier drawing animation. 
