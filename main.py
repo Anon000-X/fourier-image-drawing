@@ -178,4 +178,4 @@ def animate_draw(frame):
 # run the animation
 anim = FuncAnimation(fig, animate_draw, frames=total_frames + 1, interval=15, repeat=False)
 
-plt.show()
+plt.show() 
